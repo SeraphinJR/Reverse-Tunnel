@@ -51,7 +51,7 @@ func runAgent(currentDelay *time.Duration, baseDelay time.Duration) error {
 	for {
 		stream, err := session.Accept()
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("Yamux session dropped: %v", err)
 		}
 		go handleStream(stream)
 	}
@@ -61,7 +61,8 @@ func handleStream(stream net.Conn) {
 	defer stream.Close()
 	localConn, err := net.Dial("tcp", "localhost:5173")
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Local app offline:", err)
+		return
 	}
 	defer localConn.Close()
 
