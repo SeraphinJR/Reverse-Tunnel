@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"net"
+
+	"github.com/hashicorp/yamux"
 )
 
 func main() {
@@ -15,13 +17,28 @@ func main() {
 	}
 	fmt.Println("Connected to relay")
 
-	localConn, err := net.Dial("tcp", "localhost:8080")
+	session, err := yamux.Server(relayConn, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Local app connected")
 
-	go io.Copy(localConn, relayConn)
+	for {
+		stream, err := session.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
+		go handleStream(stream)
+	}
+}
 
-	io.Copy(relayConn, localConn)
+func handleStream(stream net.Conn) {
+	defer stream.Close()
+	localConn, err := net.Dial("tcp", "localhost:5173")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer localConn.Close()
+
+	go io.Copy(localConn, stream)
+	io.Copy(stream, localConn)
 }
